@@ -1,7 +1,18 @@
 {
-  "name": "hardhat-project",
+  "name": "smart-contract-coffee-marketplace",
+  "scripts": {
+    "compile": "npx hardhat compile --show-stack-traces",
+    "clean": "npx hardhat clean",
+    "test": "npx hardhat test",
+    "deploy": "npx hardhat ignition deploy ./ignition/modules/Marketplace.js --network localhost"
+  },
   "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.8",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "hardhat": "^2.22.17"
+    "hardhat": "^2.22.17",
+    "chai": "4.3.7"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "4.9.6"
   }
 }
