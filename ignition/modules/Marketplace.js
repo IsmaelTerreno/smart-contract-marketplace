@@ -5,5 +5,6 @@ const { buildModule } = require("@nomicfoundation/hardhat-ignition/modules");
 
 module.exports = buildModule("MarketplaceModule", (m) => {
   const marketplace = m.contract("Marketplace", [], {});
-  return { marketplace };
+  const ERC20MarketplaceItem = m.contract("ERC20MarketplaceItem", [20000000], {});
+  return { marketplace, ERC20MarketplaceItem };
 });
