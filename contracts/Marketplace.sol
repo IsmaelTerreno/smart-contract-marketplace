@@ -34,7 +34,7 @@ contract Marketplace is Ownable, EIP712 {
     // Constructor with name Marketplace and version 1
     constructor() EIP712("Marketplace", "1") Ownable(msg.sender) {}
 
-    // Function to list an item from the marketplace
+    // Function to list an item in the marketplace contract
     function listItem(address token, uint256 amount, uint256 price) external {
         // Transfer tokens from the seller to the contract
         require(IERC20(token).transferFrom(msg.sender, address(this), amount), "Transfer failed");
