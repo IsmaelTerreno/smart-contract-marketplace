@@ -51,8 +51,9 @@ describe("Marketplace", function () {
   });
 
   it("should allow a buyer to purchase listed tokens", async function () {
-    // Seller lists tokens
+    // Seller approves marketplace to transfer tokens
     await token.connect(seller).approve(marketplace.getAddress(), tokenAmount);
+    // Seller lists tokens
     await marketplace.connect(seller).listItem(token.getAddress(), tokenAmount, tokenPrice);
 
     // Buyer purchases the tokens
@@ -67,6 +68,37 @@ describe("Marketplace", function () {
     // Check listing inactive
     const listing = await marketplace.listings(0);
     expect(listing.active).to.be.false;
+  });
+
+  it("should return only active listings", async function () {
+    // Seller lists two items with different prices
+    await token.connect(seller).approve(marketplace.getAddress(), tokenAmount);
+    // List one item
+    await marketplace.connect(seller).listItem(token.getAddress(), tokenAmount, tokenPrice);
+    // Use native BigInt conversion
+    const halfTokenAmount = BigInt(tokenAmount / 2);
+    // Use BigInt division
+    const halfTokenPrice = tokenPrice / 2n;
+    // List another item with half the amount and price
+    await token.connect(seller).approve(marketplace.getAddress(), halfTokenAmount);
+    // List the other item
+    await marketplace.connect(seller).listItem(token.getAddress(), halfTokenAmount, halfTokenPrice);
+    // Buyer purchases one of the listings
+    await marketplace.connect(buyer).purchaseItem(0, { value: tokenPrice });
+    // Get active listings
+    const activeListings = await marketplace.getListings();
+    // Expect only one active listing
+    expect(activeListings.length).to.equal(1);
+    // Check the active listing
+    const activeListing = activeListings[0];
+    // Check the seller of the active listing
+    expect(activeListing.seller).to.equal(seller.address);
+    // Check the token of the active listing
+    expect(activeListing.amount).to.equal(halfTokenAmount);
+    // Check the price of the active listing
+    expect(activeListing.price).to.equal(halfTokenPrice);
+    // Check the active status of the active listing
+    expect(activeListing.active).to.be.true;
   });
 
   it("should allow sellers to withdraw earnings in Ether", async function () {

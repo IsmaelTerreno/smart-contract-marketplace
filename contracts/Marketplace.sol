@@ -116,4 +116,31 @@ contract Marketplace is Ownable, EIP712 {
         // Return true if the signature is valid
         return true;
     }
+
+    // Function to get all active listings
+    function getListings() external view returns (Listing[] memory) {
+        // Create a temporary array to hold active listings
+        Listing[] memory activeListings = new Listing[](listingCount);
+        // Count the number of active listings
+        uint256 count = 0;
+        // Iterate through all the listings
+        for (uint256 i = 0; i < listingCount; i++) {
+            // Check if the listing is active
+            if (listings[i].active) {
+                // Add the listing to the temporary array
+                activeListings[count] = listings[i];
+                // Increment the count
+                count++;
+            }
+        }
+        // Create a new array with active listings only
+        Listing[] memory result = new Listing[](count);
+        // Copy the active listings to the new array
+        for (uint256 j = 0; j < count; j++) {
+            // Copy the listing to the result array
+            result[j] = activeListings[j];
+        }
+        // Return the result array
+        return result;
+    }
 }
