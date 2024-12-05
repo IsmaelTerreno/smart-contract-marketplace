@@ -2,6 +2,7 @@
   "name": "smart-contract-coffee-marketplace",
   "scripts": {
     "start:local:node": "npx hardhat node",
+    "clean:local:node": "rm -rf ./hardhat-local-node",
     "compile": "npx hardhat compile --show-stack-traces",
     "clean": "npx hardhat clean",
     "test": "npx hardhat test",
