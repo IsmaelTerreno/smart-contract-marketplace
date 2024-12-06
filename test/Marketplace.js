@@ -62,8 +62,12 @@ describe("Marketplace", function () {
     // Seller approves marketplace to transfer tokens
     await token.connect(seller).approve(marketplace.getAddress(), tokenAmount);
 
-    // Seller lists tokens
-    await expect(marketplace.connect(seller).listItem(token.getAddress(), tokenAmount, tokenPrice))
+    // Create the domain and signature for the seller
+    const domainSeller = await getDomain();
+    const signatureSeller = await createSignature(seller, domainSeller);
+
+    // Seller lists tokens with the signature
+    await expect(marketplace.connect(seller).listItem(token.getAddress(), tokenAmount, tokenPrice, signatureSeller))
       .to.emit(marketplace, "ItemListed")
       .withArgs(anyValue, seller.address, token.getAddress(), tokenAmount, tokenPrice);
 
@@ -81,8 +85,12 @@ describe("Marketplace", function () {
     // Seller approves marketplace to transfer tokens
     await token.connect(seller).approve(marketplace.getAddress(), tokenAmount);
 
-    // Seller lists tokens
-    await marketplace.connect(seller).listItem(token.getAddress(), tokenAmount, tokenPrice);
+    // Create the domain and signature for the seller
+    const domainSeller = await getDomain();
+    const signatureSeller = await createSignature(seller, domainSeller);
+
+    // Seller lists tokens with the signature
+    await expect(marketplace.connect(seller).listItem(token.getAddress(), tokenAmount, tokenPrice, signatureSeller))
 
     // Create the domain and signature for the buyer
     const domain = await getDomain();
@@ -106,8 +114,12 @@ describe("Marketplace", function () {
     // Seller approves marketplace to transfer tokens
     await token.connect(seller).approve(marketplace.getAddress(), tokenAmount);
 
-    // Seller lists the first item
-    await marketplace.connect(seller).listItem(token.getAddress(), tokenAmount, tokenPrice);
+    // Create the domain and signature for the seller
+    const domainSeller = await getDomain();
+    const signatureSeller = await createSignature(seller, domainSeller);
+
+    // Seller lists the first item with a valid signature
+    await expect(marketplace.connect(seller).listItem(token.getAddress(), tokenAmount, tokenPrice, signatureSeller))
 
     // Calculate half the token amount and price for the second item
     const halfTokenAmount = BigInt(tokenAmount / 2);
@@ -115,7 +127,8 @@ describe("Marketplace", function () {
 
     // Approve and list a second item with half the amount and price
     await token.connect(seller).approve(marketplace.getAddress(), halfTokenAmount);
-    await marketplace.connect(seller).listItem(token.getAddress(), halfTokenAmount, halfTokenPrice);
+    // Seller lists the second item with a valid signature
+    await marketplace.connect(seller).listItem(token.getAddress(), halfTokenAmount, halfTokenPrice, signatureSeller);
 
     // Create the domain and signature for the buyer
     const domain = await getDomain();
@@ -142,8 +155,12 @@ describe("Marketplace", function () {
     // Seller approves marketplace to transfer tokens
     await token.connect(seller).approve(marketplace.getAddress(), tokenAmount);
 
-    // Seller lists tokens
-    await marketplace.connect(seller).listItem(token.getAddress(), tokenAmount, tokenPrice);
+    // Create the domain and signature for the seller
+    const domainSeller = await getDomain();
+    const signatureSeller = await createSignature(seller, domainSeller);
+
+    // Seller lists tokens with the signature
+    await expect(marketplace.connect(seller).listItem(token.getAddress(), tokenAmount, tokenPrice, signatureSeller))
 
     // Create the domain and signature for the buyer
     const domain = await getDomain();

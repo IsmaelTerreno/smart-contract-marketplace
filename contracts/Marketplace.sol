@@ -34,7 +34,9 @@ contract Marketplace is Ownable, EIP712 {
         // Constructor initializes the EIP712 domain
     }
 
-    function listItem(address token, uint256 amount, uint256 price) external {
+    function listItem(address token, uint256 amount, uint256 price, bytes memory signature) external {
+        // Verify the seller's signature
+        require(_verify(msg.sender, signature), "Invalid signature");
         // Transfer tokens from the seller to the contract
         require(IERC20(token).transferFrom(msg.sender, address(this), amount), "Transfer failed");
         // Store the listing details with a unique ID
