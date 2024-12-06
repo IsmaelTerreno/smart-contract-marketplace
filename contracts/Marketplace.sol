@@ -7,136 +7,111 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 contract Marketplace is Ownable, EIP712 {
-    // Importing ECDSA library for signature verification
     using ECDSA for bytes32;
 
-    // Struct to store listing details
     struct Listing {
-        address seller;
-        address token;
-        uint256 amount;
-        uint256 price;
-        bool active;
+        uint256 id; // New field: Unique identifier for each listing
+        address seller; // Address of the seller
+        address token; // Address of the ERC20 token being sold
+        uint256 amount; // Amount of the token being listed
+        uint256 price; // Price of the token in wei
+        bool active; // Indicates if the listing is still active
     }
-    // Mapping to store listings
+
+    // Mapping from listing ID to Listing details
     mapping(uint256 => Listing) public listings;
-    // Variable to store listing count
-    uint256 public listingCount;
-    // Mapping to store seller earnings
-    mapping(address => uint256) public sellerEarnings;
-    // Event when an item is listed
+    uint256 public listingCount; // Counter to track total number of listings
+    mapping(address => uint256) public sellerEarnings; // Tracks the earnings of each seller
+
+    // Event emitted when a new item is listed
     event ItemListed(uint256 indexed listingId, address indexed seller, address token, uint256 amount, uint256 price);
-    // Event when an item is purchased
+    // Event emitted when an item is purchased
     event ItemPurchased(uint256 indexed listingId, address indexed buyer, address seller, address token, uint256 amount);
-    // Event when funds are withdrawn
+    // Event emitted when a seller withdraws their funds
     event FundsWithdrawn(address indexed seller, uint256 amount);
 
-    // Constructor with name Marketplace and version 1
-    constructor() EIP712("Marketplace", "1") Ownable(msg.sender) {}
+    constructor() EIP712("Marketplace", "1") Ownable(msg.sender) {
+        // Constructor initializes the EIP712 domain
+    }
 
-    // Function to list an item in the marketplace contract
     function listItem(address token, uint256 amount, uint256 price) external {
         // Transfer tokens from the seller to the contract
         require(IERC20(token).transferFrom(msg.sender, address(this), amount), "Transfer failed");
-        // Store the listing details
-        listings[listingCount] = Listing(msg.sender, token, amount, price, true);
-        // Emit the ItemListed event
+        // Store the listing details with a unique ID
+        listings[listingCount] = Listing(listingCount, msg.sender, token, amount, price, true);
+        // Emit event after successfully listing the item
         emit ItemListed(listingCount, msg.sender, token, amount, price);
-        // Increment the listing count
+        // Increment the listing counter for the next listing
         listingCount++;
     }
 
-    // Function to purchase an item from the marketplace with signature validation
     function purchaseItem(uint256 listingId, bytes memory signature) external payable {
         // Verify the buyer's signature
         require(_verify(msg.sender, signature), "Invalid signature");
-        // Get the listing details
+        // Retrieve the listing from storage
         Listing storage listing = listings[listingId];
-        // Check if the listing is active
+        // Ensure the listing is still active
         require(listing.active, "Listing inactive");
-        // Check if the buyer has sent enough ether
+        // Check if the sent value covers the listing price
         require(msg.value >= listing.price, "Insufficient Ether sent");
-        // Mark the listing as inactive to prevent reentrancy
+        // Mark the listing as inactive once purchased
         listing.active = false;
-        // Transfer the tokens to the buyer
+        // Transfer the tokens from the contract to the buyer
         require(IERC20(listing.token).transfer(msg.sender, listing.amount), "Token transfer failed");
-        // Update seller earnings instead of directly transferring funds
+        // Credit the seller's earnings
         sellerEarnings[listing.seller] += listing.price;
-        // Emit the ItemPurchased event to log the purchase
+        // Emit event for the successful purchase
         emit ItemPurchased(listingId, msg.sender, listing.seller, listing.token, listing.amount);
     }
 
-    // Function to withdraw funds from the contract for the seller
     function withdrawFunds(bytes memory signature) external {
-        // Verify the signature using the internal _verify function for validation
+        // Verify the seller's signature
         require(_verify(msg.sender, signature), "Invalid signature");
-        // Get the amount to withdraw
+        // Get the amount available for withdrawal
         uint256 amount = sellerEarnings[msg.sender];
-        // Check if the seller has earnings
+        // Ensure there are funds to withdraw
         require(amount > 0, "No funds to withdraw");
-        // Zero out the seller earnings before transferring to prevent reentrancy
+        // Reset the seller's earnings to zero
         sellerEarnings[msg.sender] = 0;
         // Transfer the funds to the seller
         payable(msg.sender).transfer(amount);
-        // Emit the FundsWithdrawn event to log the withdrawal
+        // Emit event after funds are withdrawn
         emit FundsWithdrawn(msg.sender, amount);
     }
 
-    // Function to verify the signature
-    function _verify(
-        address participant,
-        bytes memory signature
-    ) internal view returns (bool) {
-        // Hash the data using EIP712
+    function _verify(address participant, bytes memory signature) internal view returns (bool) {
+        // Generate a hash of the data using EIP712 encoding
         bytes32 digest = _hashTypedDataV4(
-            // Create a hash of the order data
-            keccak256(
-                // Encode the order data
-                abi.encode(
-                    keccak256("Order(address participant)"),
-                    participant
-                )
-            )
+            keccak256(abi.encode(keccak256("Order(address participant)"), participant))
         );
-        // Recover the signer from the signature
+        // Verify that the recovered signature matches the participant's address
         return digest.recover(signature) == participant;
     }
 
-    // Function to authorize with a signature
-    function authorizeWithSignature(
-        address participant,
-        bytes memory signature
-    ) external view returns (bool) {
-        // Verify the signature
-        require(_verify(participant,signature), "Invalid signature");
-        // Return true if the signature is valid
+    function authorizeWithSignature(address participant, bytes memory signature) external view returns (bool) {
+        // Ensure the participant's signature is valid
+        require(_verify(participant, signature), "Invalid signature");
         return true;
     }
 
-    // Function to get all active listings
     function getListings() external view returns (Listing[] memory) {
-        // Create a temporary array to hold active listings
+        // Initialize an array to store active listings
         Listing[] memory activeListings = new Listing[](listingCount);
-        // Count the number of active listings
         uint256 count = 0;
-        // Iterate through all the listings
+        // Loop through each listing and gather active ones
         for (uint256 i = 0; i < listingCount; i++) {
-            // Check if the listing is active
             if (listings[i].active) {
-                // Add the listing to the temporary array
                 activeListings[count] = listings[i];
-                // Increment the count
                 count++;
             }
         }
-        // Create a new array with active listings only
+        // Create a result array of exact size needed
         Listing[] memory result = new Listing[](count);
-        // Copy the active listings to the new array
+        // Copy active listings to the result array
         for (uint256 j = 0; j < count; j++) {
-            // Copy the listing to the result array
             result[j] = activeListings[j];
         }
-        // Return the result array
+        // Return the array of active listings
         return result;
     }
 }
