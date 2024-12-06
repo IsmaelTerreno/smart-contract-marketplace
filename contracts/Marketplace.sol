@@ -46,8 +46,10 @@ contract Marketplace is Ownable, EIP712 {
         listingCount++;
     }
 
-    // Function to purchase an item from the marketplace
-    function purchaseItem(uint256 listingId) external payable {
+    // Function to purchase an item from the marketplace with signature validation
+    function purchaseItem(uint256 listingId, bytes memory signature) external payable {
+        // Verify the buyer's signature
+        require(_verify(msg.sender, signature), "Invalid signature");
         // Get the listing details
         Listing storage listing = listings[listingId];
         // Check if the listing is active

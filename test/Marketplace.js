@@ -80,11 +80,16 @@ describe("Marketplace", function () {
   it("should allow a buyer to purchase listed tokens", async function () {
     // Seller approves marketplace to transfer tokens
     await token.connect(seller).approve(marketplace.getAddress(), tokenAmount);
+
     // Seller lists tokens
     await marketplace.connect(seller).listItem(token.getAddress(), tokenAmount, tokenPrice);
 
-    // Buyer purchases the tokens
-    await expect(marketplace.connect(buyer).purchaseItem(0, { value: tokenPrice }))
+    // Create the domain and signature for the buyer
+    const domain = await getDomain();
+    const signature = await createSignature(buyer, domain);
+
+    // Buyer purchases the tokens with signature
+    await expect(marketplace.connect(buyer).purchaseItem(0, signature, { value: tokenPrice }))
       .to.emit(marketplace, "ItemPurchased")
       .withArgs(anyValue, buyer.address, seller.address, token.getAddress(), tokenAmount);
 
@@ -98,64 +103,74 @@ describe("Marketplace", function () {
   });
 
   it("should return only active listings", async function () {
-    // Seller lists two items with different prices
+    // Seller approves marketplace to transfer tokens
     await token.connect(seller).approve(marketplace.getAddress(), tokenAmount);
-    // List one item
+
+    // Seller lists the first item
     await marketplace.connect(seller).listItem(token.getAddress(), tokenAmount, tokenPrice);
-    // Use native BigInt conversion
+
+    // Calculate half the token amount and price for the second item
     const halfTokenAmount = BigInt(tokenAmount / 2);
-    // Use BigInt division
     const halfTokenPrice = tokenPrice / 2n;
-    // List another item with half the amount and price
+
+    // Approve and list a second item with half the amount and price
     await token.connect(seller).approve(marketplace.getAddress(), halfTokenAmount);
-    // List the other item
     await marketplace.connect(seller).listItem(token.getAddress(), halfTokenAmount, halfTokenPrice);
-    // Buyer purchases one of the listings
-    await marketplace.connect(buyer).purchaseItem(0, { value: tokenPrice });
+
+    // Create the domain and signature for the buyer
+    const domain = await getDomain();
+    const signature = await createSignature(buyer, domain);
+
+    // Buyer purchases the first listing using a valid signature
+    await marketplace.connect(buyer).purchaseItem(0, signature, { value: tokenPrice });
+
     // Get active listings
     const activeListings = await marketplace.getListings();
-    // Expect only one active listing
+
+    // Expect only one active listing remains
     expect(activeListings.length).to.equal(1);
-    // Check the active listing
+
+    // Verify details of the active listing
     const activeListing = activeListings[0];
-    // Check the seller of the active listing
     expect(activeListing.seller).to.equal(seller.address);
-    // Check the token of the active listing
     expect(activeListing.amount).to.equal(halfTokenAmount);
-    // Check the price of the active listing
     expect(activeListing.price).to.equal(halfTokenPrice);
-    // Check the active status of the active listing
     expect(activeListing.active).to.be.true;
   });
 
   it("should allow sellers to withdraw earnings in Ether", async function () {
-    // Seller lists tokens
+    // Seller approves marketplace to transfer tokens
     await token.connect(seller).approve(marketplace.getAddress(), tokenAmount);
+
+    // Seller lists tokens
     await marketplace.connect(seller).listItem(token.getAddress(), tokenAmount, tokenPrice);
 
-    // Buyer purchases the tokens
-    await marketplace.connect(buyer).purchaseItem(0, { value: tokenPrice });
+    // Create the domain and signature for the buyer
+    const domain = await getDomain();
+    const buyerSignature = await createSignature(buyer, domain);
+
+    // Buyer purchases the tokens with a valid signature
+    await marketplace.connect(buyer).purchaseItem(0, buyerSignature, { value: tokenPrice });
 
     // Check seller balance before withdrawal
     const sellerBalanceBefore = ethers.toBigInt(await ethers.provider.getBalance(seller.address));
-    // Create a hash of the data that conforms to the EIP712 signature used in the contract (_hashTypedDataV4)
-    const domain = await getDomain();
-    // Use signTypedDataV4 util
-    const signature = await createSignature(seller, domain); // Correct the participant to match the withdrawing actor
+
+    // Create a signature for the seller to withdraw funds
+    const sellerSignature = await createSignature(seller, domain);
 
     // Seller withdraws funds with a valid signature
-    await expect(marketplace.connect(seller).withdrawFunds(signature))
+    await expect(marketplace.connect(seller).withdrawFunds(sellerSignature))
       .to.emit(marketplace, "FundsWithdrawn")
-      .withArgs(seller.address, anyValue); // Adjust args to match event signature
+      .withArgs(seller.address, anyValue);
 
     // Check seller balance after withdrawal
     const sellerBalanceAfter = ethers.toBigInt(await ethers.provider.getBalance(seller.address));
 
-    // Calculate expected change (considering possible gas usage)
+    // Calculate expected balance change (considering possible gas usage)
     const balanceChange = sellerBalanceAfter - sellerBalanceBefore;
 
     // Ensure at least the expected eth increment minus some gas usage is part of this
-    expect(balanceChange).to.be.lt(ethers.toBigInt(tokenPrice));
+    expect(balanceChange).to.be.closeTo(ethers.toBigInt(tokenPrice), ethers.toBigInt(ethers.parseEther("0.01"))); // Allow some margin for gas
   });
 
   it("should authorize with a valid signature", async function () {
