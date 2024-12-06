@@ -60,6 +60,12 @@ contract Marketplace is Ownable, EIP712 {
         require(msg.value == listing.price, "Incorrect Ether amount sent");
         // Check if the sent value covers the listing price
         require(msg.value >= listing.price, "Insufficient Ether sent");
+        // Ensure the contract has enough tokens to transfer
+        require(IERC20(listing.token).balanceOf(address(this)) >= listing.amount, "Insufficient token balance");
+        // Ensure the buyer is not the seller
+        require(msg.sender != listing.seller, "Seller cannot purchase own item");
+         // Check if the amount is greater than zero
+        require(listing.amount > 0, "Invalid amount");
 
         // Mark the listing as inactive once purchased
         listing.active = false;
