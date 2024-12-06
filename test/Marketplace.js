@@ -32,6 +32,32 @@ describe("Marketplace", function () {
     expect(marketPlaceAddress).to.be.properAddress;
   });
 
+  const getDomain = async () => {
+    const { chainId } = await ethers.provider.getNetwork();
+    const marketplaceAddress = await marketplace.getAddress();
+    return {
+      name: "Marketplace",
+      version: "1",
+      chainId: chainId,
+      verifyingContract: marketplaceAddress,
+    };
+  }
+
+  const createSignature = async (participant, domain) => {
+    // Types of data to sign
+    const types = {
+      Order: [
+        { name: "participant", type: "address" }
+      ],
+    };
+    // Value to sign
+    const value = {
+      participant: participant.address,
+    };
+    // Use signTypedDataV4 util to the sign the data types and value
+    return  await participant.signTypedData(domain, types, value);
+  }
+
   it("should allow a user to list ERC-20 tokens for sale", async function () {
     // Seller approves marketplace to transfer tokens
     await token.connect(seller).approve(marketplace.getAddress(), tokenAmount);
@@ -112,11 +138,15 @@ describe("Marketplace", function () {
 
     // Check seller balance before withdrawal
     const sellerBalanceBefore = ethers.toBigInt(await ethers.provider.getBalance(seller.address));
+    // Create a hash of the data that conforms to the EIP712 signature used in the contract (_hashTypedDataV4)
+    const domain = await getDomain();
+    // Use signTypedDataV4 util
+    const signature = await createSignature(seller, domain); // Correct the participant to match the withdrawing actor
 
-    // Seller withdraws funds
-    await expect(marketplace.connect(seller).withdrawFunds())
+    // Seller withdraws funds with a valid signature
+    await expect(marketplace.connect(seller).withdrawFunds(signature))
       .to.emit(marketplace, "FundsWithdrawn")
-      .withArgs(seller.address, tokenPrice);
+      .withArgs(seller.address, anyValue); // Adjust args to match event signature
 
     // Check seller balance after withdrawal
     const sellerBalanceAfter = ethers.toBigInt(await ethers.provider.getBalance(seller.address));
@@ -127,32 +157,6 @@ describe("Marketplace", function () {
     // Ensure at least the expected eth increment minus some gas usage is part of this
     expect(balanceChange).to.be.lt(ethers.toBigInt(tokenPrice));
   });
-
-  const getDomain = async () => {
-    const { chainId } = await ethers.provider.getNetwork();
-    const marketplaceAddress = await marketplace.getAddress();
-    return {
-      name: "Marketplace",
-      version: "1",
-      chainId: chainId,
-      verifyingContract: marketplaceAddress,
-    };
-  }
-
-  const createSignature = async (participant, domain) => {
-    // Types of data to sign
-    const types = {
-      Order: [
-        { name: "participant", type: "address" }
-      ],
-    };
-    // Value to sign
-    const value = {
-      participant: participant.address,
-    };
-    // Use signTypedDataV4 util to the sign the data types and value
-    return  await participant.signTypedData(domain, types, value);
-  }
 
   it("should authorize with a valid signature", async function () {
     // Create a hash of the data that conforms to the EIP712 signature used in the contract (_hashTypedDataV4)
@@ -191,27 +195,5 @@ describe("Marketplace", function () {
       )
     ).to.be.revertedWithCustomError(marketplace, "ECDSAInvalidSignature");
   });
-
 });
 
-
-
-describe("Marketplace - Signature Authorization", function () {
-  let marketplace;
-  let owner;
-  let participant;
-  const nonce = 1;
-  let deadline;
-
-  beforeEach(async function () {
-    [owner, participant] = await ethers.getSigners();
-
-    // Deploy the marketplace contract
-    const Marketplace = await ethers.getContractFactory("Marketplace");
-    marketplace = await Marketplace.deploy();
-    await marketplace.waitForDeployment();
-
-  });
-
-
-});

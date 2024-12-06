@@ -65,7 +65,9 @@ contract Marketplace is Ownable, EIP712 {
     }
 
     // Function to withdraw funds from the contract for the seller
-    function withdrawFunds() external {
+    function withdrawFunds(bytes memory signature) external {
+        // Verify the signature using the internal _verify function for validation
+        require(_verify(msg.sender, signature), "Invalid signature");
         // Get the amount to withdraw
         uint256 amount = sellerEarnings[msg.sender];
         // Check if the seller has earnings
