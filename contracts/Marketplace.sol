@@ -10,7 +10,7 @@ contract Marketplace is Ownable, EIP712 {
     using ECDSA for bytes32;
 
     struct Listing {
-        uint256 id; // New field: Unique identifier for each listing
+        uint256 id; // Unique identifier for each listing
         address seller; // Address of the seller
         address token; // Address of the ERC20 token being sold
         uint256 amount; // Amount of the token being listed
