@@ -81,8 +81,6 @@ contract Marketplace is Ownable, EIP712 {
     // Function to verify the signature
     function _verify(
         address participant,
-        uint256 nonce,
-        uint256 deadline,
         bytes memory signature
     ) internal view returns (bool) {
         // Hash the data using EIP712
@@ -91,10 +89,8 @@ contract Marketplace is Ownable, EIP712 {
             keccak256(
                 // Encode the order data
                 abi.encode(
-                    keccak256("Order(address participant,uint256 nonce,uint256 deadline)"),
-                    participant,
-                    nonce,
-                    deadline
+                    keccak256("Order(address participant)"),
+                    participant
                 )
             )
         );
@@ -105,14 +101,10 @@ contract Marketplace is Ownable, EIP712 {
     // Function to authorize with a signature
     function authorizeWithSignature(
         address participant,
-        uint256 nonce,
-        uint256 deadline,
         bytes memory signature
     ) external view returns (bool) {
-        // Check if the deadline has not passed
-        require(block.timestamp <= deadline, "Signature expired");
         // Verify the signature
-        require(_verify(participant, nonce, deadline, signature), "Invalid signature");
+        require(_verify(participant,signature), "Invalid signature");
         // Return true if the signature is valid
         return true;
     }
