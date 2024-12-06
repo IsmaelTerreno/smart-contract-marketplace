@@ -190,7 +190,7 @@ describe("Marketplace", function () {
     expect(balanceChange).to.be.closeTo(ethers.toBigInt(tokenPrice), ethers.toBigInt(ethers.parseEther("0.01"))); // Allow some margin for gas
   });
 
-  it("should authorize with a valid signature", async function () {
+  it("should authorize with a valid signature from owner", async function () {
     // Create a hash of the data that conforms to the EIP712 signature used in the contract (_hashTypedDataV4)
     const domain = await getDomain();
     // Use signTypedDataV4 util
@@ -198,6 +198,20 @@ describe("Marketplace", function () {
     // Call authorizeWithSignature with valid data
     const isAuthorized = await marketplace.authorizeWithSignature(
       owner.address,
+      signature
+    );
+    // Expect the result to be true, indicating successful authorization
+    expect(isAuthorized).to.be.true;
+  });
+
+  it("should authorize with a valid signature from buyer", async function () {
+    // Create a hash of the data that conforms to the EIP712 signature used in the contract (_hashTypedDataV4)
+    const domain = await getDomain();
+    // Use signTypedDataV4 util
+    const signature = await createSignature(buyer,domain );
+    // Call authorizeWithSignature with valid data
+    const isAuthorized = await marketplace.authorizeWithSignature(
+      buyer.address,
       signature
     );
     // Expect the result to be true, indicating successful authorization
