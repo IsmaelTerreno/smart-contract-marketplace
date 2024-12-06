@@ -127,6 +127,71 @@ describe("Marketplace", function () {
     // Ensure at least the expected eth increment minus some gas usage is part of this
     expect(balanceChange).to.be.lt(ethers.toBigInt(tokenPrice));
   });
+
+  const getDomain = async () => {
+    const { chainId } = await ethers.provider.getNetwork();
+    const marketplaceAddress = await marketplace.getAddress();
+    return {
+      name: "Marketplace",
+      version: "1",
+      chainId: chainId,
+      verifyingContract: marketplaceAddress,
+    };
+  }
+
+  const createSignature = async (participant, domain) => {
+    // Types of data to sign
+    const types = {
+      Order: [
+        { name: "participant", type: "address" }
+      ],
+    };
+    // Value to sign
+    const value = {
+      participant: participant.address,
+    };
+    // Use signTypedDataV4 util to the sign the data types and value
+    return  await participant.signTypedData(domain, types, value);
+  }
+
+  it("should authorize with a valid signature", async function () {
+    // Create a hash of the data that conforms to the EIP712 signature used in the contract (_hashTypedDataV4)
+    const domain = await getDomain();
+    // Use signTypedDataV4 util
+    const signature = await createSignature(owner,domain );
+    // Call authorizeWithSignature with valid data
+    const isAuthorized = await marketplace.authorizeWithSignature(
+      owner.address,
+      signature
+    );
+    // Expect the result to be true, indicating successful authorization
+    expect(isAuthorized).to.be.true;
+  });
+
+  it("should not authorize with a invalid signature domain", async function () {
+    // Create a hash of the data that conforms to the EIP712 signature used in the contract (_hashTypedDataV4)
+    const domain = await getDomain();
+    domain.version = "8"; // Change the domain version to invalidate the signature
+    // Use signTypedDataV4 util
+    const signature = await createSignature(owner,domain );
+    // Call authorizeWithSignature with invalid domain data
+    await expect( marketplace.authorizeWithSignature(
+      owner.address,
+      signature
+    )).to.be.revertedWith("Invalid signature");
+  });
+
+
+  it("should fail authorization with an invalid signature", async function () {
+    const incorrectSignature = "0x" + "00".repeat(65); // An invalid 'zero' signature
+    await expect(
+      marketplace.authorizeWithSignature(
+        owner.address,
+        incorrectSignature
+      )
+    ).to.be.revertedWithCustomError(marketplace, "ECDSAInvalidSignature");
+  });
+
 });
 
 
@@ -146,71 +211,7 @@ describe("Marketplace - Signature Authorization", function () {
     marketplace = await Marketplace.deploy();
     await marketplace.waitForDeployment();
 
-    // Set a future deadline time
-    deadline = Math.floor(Date.now() / 1000) + 60 * 60; // 1 hour from now
-  });
-
-  const getDomain = async () => {
-    const { chainId } = await ethers.provider.getNetwork();
-    const marketplaceAddress = await marketplace.getAddress();
-    return {
-      name: "Marketplace",
-      version: "1",
-      chainId: chainId,
-      verifyingContract: marketplaceAddress,
-    };
-  }
-
-  const createSignature = async (participantAddress, domain) => {
-    // Types of data to sign
-    const types = {
-      Order: [
-        { name: "participant", type: "address" }
-      ],
-    };
-    // Value to sign
-    const value = {
-      participant: participantAddress
-    };
-    // Use signTypedDataV4 util to the sign the data types and value
-    return  await participant.signTypedData(domain, types, value);
-  }
-
-  it("should authorize with a valid signature", async function () {
-    // Create a hash of the data that conforms to the EIP712 signature used in the contract (_hashTypedDataV4)
-    const domain = await getDomain();
-    // Use signTypedDataV4 util
-    const signature = await createSignature(participant.address,domain );
-    // Call authorizeWithSignature with valid data
-    const isAuthorized = await marketplace.authorizeWithSignature(
-      participant.address,
-      signature
-    );
-    // Expect the result to be true, indicating successful authorization
-    expect(isAuthorized).to.be.true;
-  });
-
-  it("should not authorize with a invalid signature domain", async function () {
-    // Create a hash of the data that conforms to the EIP712 signature used in the contract (_hashTypedDataV4)
-    const domain = await getDomain();
-    domain.version = "8"; // Change the domain version to invalidate the signature
-    // Use signTypedDataV4 util
-    const signature = await createSignature(participant.address,domain );
-    // Call authorizeWithSignature with invalid domain data
-    await expect( marketplace.authorizeWithSignature(
-      participant.address,
-      signature
-    )).to.be.revertedWith("Invalid signature");
   });
 
 
-  it("should fail authorization with an invalid signature", async function () {
-    const incorrectSignature = "0x" + "00".repeat(65); // An invalid 'zero' signature
-    await expect(
-      marketplace.authorizeWithSignature(
-        participant.address,
-        incorrectSignature
-      )
-    ).to.be.revertedWithCustomError(marketplace, "ECDSAInvalidSignature");
-  });
 });
