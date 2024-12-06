@@ -48,20 +48,35 @@ contract Marketplace is Ownable, EIP712 {
     function purchaseItem(uint256 listingId, bytes memory signature) external payable {
         // Verify the buyer's signature
         require(_verify(msg.sender, signature), "Invalid signature");
+        // Check if the listing exists by ensuring it's neither zeroed out nor set to default values
+        require(listingExists(listingId), "Listing does not exist");
         // Retrieve the listing from storage
         Listing storage listing = listings[listingId];
         // Ensure the listing is still active
         require(listing.active, "Listing inactive");
+        // Check if the sent value matches the listing price
+        require(msg.value == listing.price, "Incorrect Ether amount sent");
         // Check if the sent value covers the listing price
         require(msg.value >= listing.price, "Insufficient Ether sent");
+
         // Mark the listing as inactive once purchased
         listing.active = false;
+
         // Transfer the tokens from the contract to the buyer
         require(IERC20(listing.token).transfer(msg.sender, listing.amount), "Token transfer failed");
+
         // Credit the seller's earnings
         sellerEarnings[listing.seller] += listing.price;
+
         // Emit event for the successful purchase
         emit ItemPurchased(listingId, msg.sender, listing.seller, listing.token, listing.amount);
+    }
+
+    // Function to verify the existence of a listing
+    function listingExists(uint256 listingId) internal view returns (bool) {
+        // Example check based on initialized fields
+        Listing storage listing = listings[listingId];
+        return listing.price != 0 || listing.amount != 0; // Adjust according to actual struct default checks
     }
 
     function withdrawFunds(bytes memory signature) external {
@@ -95,6 +110,10 @@ contract Marketplace is Ownable, EIP712 {
     }
 
     function getListings() external view returns (Listing[] memory) {
+        // If listingCount is zero, return an empty array immediately
+        if (listingCount == 0) {
+            return new Listing[](0);
+        }
         // Initialize an array to store active listings
         Listing[] memory activeListings = new Listing[](listingCount);
         uint256 count = 0;
